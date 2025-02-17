@@ -16,7 +16,9 @@ should be the only layer that directly works with the database models.
 #-----------------------------------------------------------------------------
 
 # Standard library imports
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from bson import ObjectId
+from pydantic import BaseModel, Field, field_validator
 
 # Framework imports
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -30,6 +32,26 @@ from ...models.tool_models import Tool
 #-----------------------------------------------------------------------------
 # Repository Implementation
 #-----------------------------------------------------------------------------
+
+class ToolProjection(BaseModel):
+    id: str
+    name: str
+    description: str = Field(default="")
+    slug: str = Field(default="")
+    image: str = Field(default="")
+
+    model_config = {
+        "validate_assignment": True,
+        "extra": "ignore"
+    }
+
+def document_to_dict_with_str_id(document) -> dict:
+    doc_dict = document.dict()
+    doc_dict["id"] = str(document.id)
+    # Ensure required fields have default values
+    doc_dict["slug"] = doc_dict.get("slug", "") or ""
+    doc_dict["image"] = doc_dict.get("image", "") or ""
+    return doc_dict
 
 class ToolsRepository:
     """Repository for handling tool-related database operations."""
@@ -82,17 +104,19 @@ class ToolsRepository:
     # List Operations (Pagination)
     #-------------------------------------------------------------------------
     
-    async def list_all(self, skip: int = 0, limit: int = 10) -> tuple[List[dict], int]:
-        """Retrieves a paginated list of tools with essential fields only."""
-        projection = {
-            "_id": 1,      # Required for document identification
-            "name": 1,    # Basic tool information
-            "description": 1,
-            "slug": 1,    # URL-friendly identifier
-            "image": 1    # Tool icon or preview image
-        }
-        tools = await Tool.find_all().skip(skip).limit(limit).project(projection).to_list()
+    async def list_all(self, skip: int = 0, limit: int = 10) -> Tuple[List[ToolProjection], int]:
+        tools_raw = await Tool.find_all().skip(skip).limit(limit).to_list()
         total = await Tool.count()
+
+        tools = []
+        for tool in tools_raw:
+            tool_dict = document_to_dict_with_str_id(tool)
+            # Ensure required fields have non-None values
+            tool_dict["slug"] = tool_dict.get("slug") or ""
+            tool_dict["image"] = tool_dict.get("image") or ""
+            tool_dict["description"] = tool_dict.get("description", "")
+            tools.append(ToolProjection(**tool_dict))
+
         return tools, total
 
     #-------------------------------------------------------------------------

@@ -22,39 +22,69 @@ from datetime import datetime
 
 # Third-party imports
 from beanie import Document, before_event, Insert, Replace
-from pydantic import Field
+from pydantic import Field, field_validator
 from pymongo import IndexModel, TEXT
 from slugify import slugify
 import bleach
+
+# Constants for validation
+MAX_NAME_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 300
+MAX_OVERVIEW_LENGTH = 5000
+ALLOWED_HTML_TAGS = ['p', 'h1', 'h2', 'h3', 'ul', 'li', 'code', 'pre']
+ALLOWED_HTML_ATTRS = {'*': ['class']}
 
 #-----------------------------------------------------------------------------
 # Model Definition
 #-----------------------------------------------------------------------------
 
 class Tool(Document):
-    """MongoDB document model for developer tools and technologies."""
+    """MongoDB document model for developer tools and technologies.
+    
+    Attributes:
+        name: The name of the tool (required)
+        slug: URL-friendly version of name (auto-generated)
+        description: Brief description of the tool (required)
+        image: URL to tool's image
+        overview: Detailed explanation of the tool
+        troubleshooting: List of common issues and solutions
+        best_practices: List of recommended practices
+        implementation: Technical implementation details
+        tags: List of searchable keywords
+        created_at: Timestamp of creation (auto-set)
+        updated_at: Timestamp of last update (auto-set)
+    """
+
+    model_config = {
+        "extra": "allow",
+        "json_encoders": {datetime: str}
+    }
 
     #-------------------------------------------------------------------------
     # Basic Information Fields
     #-------------------------------------------------------------------------
 
     name: str = Field(
-        ..., 
+        ...,
         description="Name of the tool",
-        max_length=100
+        max_length=MAX_NAME_LENGTH,
+        examples=["Docker", "Kubernetes", "Terraform"]
     )
     slug: Optional[str] = Field(
         None,
-        description="URL-friendly version of name"
+        description="URL-friendly version of name",
+        examples=["docker", "kubernetes", "terraform"]
     )
     description: str = Field(
         ...,
         description="Short description",
-        max_length=300
+        max_length=MAX_DESCRIPTION_LENGTH,
+        examples=["Containerization platform", "Container orchestration system"]
     )
     image: Optional[str] = Field(
         None,
-        description="Image URL"
+        description="Image URL",
+        examples=["https://example.com/docker.png"]
     )
 
     #-------------------------------------------------------------------------
@@ -63,15 +93,18 @@ class Tool(Document):
 
     overview: Optional[str] = Field(
         None,
-        description="Detailed overview"
+        description="Detailed overview",
+        max_length=MAX_OVERVIEW_LENGTH
     )
     troubleshooting: List[str] = Field(
         default_factory=list,
-        description="Common troubleshooting steps"
+        description="Common troubleshooting steps",
+        examples=[["Check container logs", "Verify port mappings"]]
     )
     best_practices: List[str] = Field(
         default_factory=list,
-        description="Recommended practices and tips"
+        description="Recommended practices and tips",
+        examples=[["Use multi-stage builds", "Implement health checks"]]
     )
     implementation: Optional[str] = Field(
         None,
@@ -84,8 +117,30 @@ class Tool(Document):
 
     tags: List[str] = Field(
         default_factory=list,
-        description="Searchable tags for categorization"
+        description="Searchable tags for categorization",
+        examples=[["container", "devops", "microservices"]]
     )
+
+    @field_validator('overview', 'implementation')
+    @classmethod
+    def sanitize_html(cls, v: Optional[str]) -> Optional[str]:
+        """Sanitize HTML content to prevent XSS attacks."""
+        if not v:
+            return v
+        return bleach.clean(
+            v,
+            tags=ALLOWED_HTML_TAGS,
+            attributes=ALLOWED_HTML_ATTRS,
+            strip=True
+        )
+
+    @field_validator('tags')
+    @classmethod
+    def normalize_tags(cls, v: List[str]) -> List[str]:
+        """Normalize tags to lowercase and remove duplicates."""
+        if not v:
+            return []
+        return list(set(tag.lower().strip() for tag in v if tag))
 
     #-------------------------------------------------------------------------
     # Metadata Fields
@@ -147,19 +202,3 @@ class Tool(Document):
                 weights={"name": 10, "overview": 5, "implementation": 3}
             )
         ]
-
-    class Config:
-        """Model configuration with example data for API docs."""
-        json_schema = {
-            "example": {
-                "name": "Docker",
-                "slug": "docker",
-                "description": "Containerization platform",
-                "image": "https://example.com/docker-logo.svg",
-                "overview": "Docker allows you to containerize applications...",
-                "troubleshooting": ["Check logs", "Restart container"],
-                "best_practices": ["Use small images", "Limit privileges"],
-                "implementation": "docker run hello-world",
-                "tags": ["containerization", "devops"]
-            }
-        }
