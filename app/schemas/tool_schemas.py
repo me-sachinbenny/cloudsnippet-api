@@ -25,6 +25,22 @@ from pydantic import BaseModel
 #-----------------------------------------------------------------------------
 # Request Schemas
 #-----------------------------------------------------------------------------
+class TroubleshootingItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    solution: str
+
+class BestPractice(BaseModel):
+    id: str
+    title: str
+    description: str
+
+class ImplementationGuide(BaseModel):
+    id: str
+    title: str
+    description: str
+    steps: List[str]
 
 class CreateToolRequest(BaseModel):
     """Schema for tool creation endpoint.
@@ -36,20 +52,52 @@ class CreateToolRequest(BaseModel):
     description: str
     image: Optional[str] = None
     overview: Optional[str] = None
-    troubleshooting: Optional[List[str]] = []
-    best_practices: Optional[List[str]] = []
-    implementation: Optional[str] = None
+    troubleshooting: List[TroubleshootingItem]
+    best_practices: List[BestPractice]
+    implementations: List[ImplementationGuide]
+    tagline: Optional[str]
+    category: Optional[str]
 
     class Config:
         json_schema_extra = {
             "example": {
+                "id": "507f1f77bcf86cd799439011",
                 "name": "Docker",
                 "description": "Containerization platform",
                 "image": "https://example.com/docker.png",
-                "overview": "Docker is a platform for developing...",
-                "troubleshooting": ["Check logs", "Verify ports"],
-                "best_practices": ["Use multi-stage builds"],
-                "implementation": "Example implementation..."
+                "overview": "Docker is a platform for developing, shipping, and running applications in containers.",
+                "troubleshooting": [
+                    {
+                        "id": "1",
+                        "title": "Container not starting",
+                        "description": "The container fails to start due to a configuration issue.",
+                        "solution": "Check the container logs using 'docker logs <container_id>'."
+                    }
+                ],
+                "best_practices": [
+                    {
+                        "id": "1",
+                        "title": "Use multi-stage builds",
+                        "description": "Reduce image size and improve build efficiency."
+                    }
+                ],
+                "implementations": [
+                    {
+                        "id": "1",
+                        "title": "Setting up a basic Docker container",
+                        "description": "Steps to create a simple container.",
+                        "steps": [
+                            "Install Docker.",
+                            "Create a Dockerfile.",
+                            "Build the image.",
+                            "Run the container."
+                        ]
+                    }
+                ],
+                "tagline": "Empowering developers with containerization.",
+                "category": "Containerization",
+                "created_at": "2025-02-17T10:00:00Z",
+                "updated_at": "2025-02-17T11:00:00Z"
             }
         }
 
@@ -63,9 +111,11 @@ class UpdateToolRequest(BaseModel):
     description: Optional[str] = None
     image: Optional[str] = None
     overview: Optional[str] = None
-    troubleshooting: Optional[List[str]] = None
-    best_practices: Optional[List[str]] = None
-    implementation: Optional[str] = None
+    tagline: Optional[str]
+    category: Optional[str]
+    troubleshooting: List[TroubleshootingItem]
+    best_practices: List[BestPractice]
+    implementations: List[ImplementationGuide]
 
     class Config:
         json_schema_extra = {
@@ -90,9 +140,11 @@ class ToolDetailResponse(BaseModel):
     description: str
     image: str
     overview: Optional[str]
-    troubleshooting: List[str]
-    best_practices: List[str]
-    implementation: Optional[str]
+    troubleshooting: List[TroubleshootingItem]
+    best_practices: List[BestPractice]
+    implementations: List[ImplementationGuide]
+    tagline: Optional[str]
+    category: Optional[str]
     created_at: datetime
     updated_at: datetime
 

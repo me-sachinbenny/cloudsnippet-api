@@ -82,13 +82,21 @@ class ToolsRepository:
     
     async def get_by_id(self, tool_id: str) -> Optional[Tool]:
         """Retrieves a tool document by its unique identifier."""
-        tool = await Tool.get(tool_id)
-        if not tool:
+        try:
+            object_id = ObjectId(tool_id)
+            tool = await Tool.find_one({"_id": object_id})
+            if not tool:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Tool with id '{tool_id}' not found"
+                )
+            return tool
+        except (ValueError, TypeError) as e:
+            print(f"Error converting ID: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tool with id '{tool_id}' not found"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid tool ID format"
             )
-        return tool
     
     async def get_by_slug(self, slug: str) -> Optional[Tool]:
         """Retrieves a tool document by its URL-friendly slug."""

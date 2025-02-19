@@ -22,7 +22,7 @@ from datetime import datetime
 
 # Third-party imports
 from beanie import Document, before_event, Insert, Replace
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator,BaseModel
 from pymongo import IndexModel, TEXT
 from slugify import slugify
 import bleach
@@ -38,6 +38,23 @@ ALLOWED_HTML_ATTRS = {'*': ['class']}
 # Model Definition
 #-----------------------------------------------------------------------------
 
+class TroubleshootingItem(BaseModel):
+    id: str
+    title: str
+    description: str
+    solution: str
+
+class BestPractice(BaseModel):
+    id: str
+    title: str
+    description: str
+
+class ImplementationGuide(BaseModel):
+    id: str
+    title: str
+    description: str
+    steps: List[str]
+
 class Tool(Document):
     """MongoDB document model for developer tools and technologies.
     
@@ -49,7 +66,7 @@ class Tool(Document):
         overview: Detailed explanation of the tool
         troubleshooting: List of common issues and solutions
         best_practices: List of recommended practices
-        implementation: Technical implementation details
+        implementations: Technical implementation details
         tags: List of searchable keywords
         created_at: Timestamp of creation (auto-set)
         updated_at: Timestamp of last update (auto-set)
@@ -96,19 +113,25 @@ class Tool(Document):
         description="Detailed overview",
         max_length=MAX_OVERVIEW_LENGTH
     )
-    troubleshooting: List[str] = Field(
-        default_factory=list,
-        description="Common troubleshooting steps",
-        examples=[["Check container logs", "Verify port mappings"]]
-    )
-    best_practices: List[str] = Field(
-        default_factory=list,
-        description="Recommended practices and tips",
-        examples=[["Use multi-stage builds", "Implement health checks"]]
-    )
-    implementation: Optional[str] = Field(
+    tagline: Optional[str] = Field(
         None,
-        description="Technical details and implementation guide"
+        description="Short tagline for tool",
+    )
+    category: Optional[str] = Field(
+        None,
+        description="Category of tool",
+    )
+    troubleshooting: List[TroubleshootingItem] = Field(
+        default_factory=list,
+        description="List of troubleshooting steps"
+    )
+    best_practices: List[BestPractice] = Field(
+        default_factory=list,
+        description="List of best practices"
+    )
+    implementations: List[ImplementationGuide] = Field(
+        default_factory=list,
+        description="List of implementation guides"
     )
 
     #-------------------------------------------------------------------------
@@ -121,7 +144,7 @@ class Tool(Document):
         examples=[["container", "devops", "microservices"]]
     )
 
-    @field_validator('overview', 'implementation')
+    @field_validator('overview', 'implementations', check_fields=False)
     @classmethod
     def sanitize_html(cls, v: Optional[str]) -> Optional[str]:
         """Sanitize HTML content to prevent XSS attacks."""
@@ -159,20 +182,109 @@ class Tool(Document):
     # Event Hooks
     #-------------------------------------------------------------------------
 
-    @before_event([Insert])
-    def set_slug(self) -> None:
-        """Automatically generates URL-friendly slug from tool name."""
+    @before_event([Insert, Replace])
+    def pre_save_hook(self) -> None:
+        """Pre-save hook for data validation and processing.
+        
+        Performs the following operations:
+        1. Generates slug if not present
+        2. Updates timestamps
+        3. Sanitizes HTML content
+        4. Normalizes tags
+        5. Validates content lengths
+        """
+        # Generate slug if not present (only for new documents)
         if not self.slug:
             self.slug = slugify(self.name)
 
-    @before_event([Insert, Replace])
-    def sanitize_and_timestamp(self) -> None:
-        """Updates timestamp and sanitizes HTML content for security."""
-        self.updated_at = datetime.utcnow()
+        # Update timestamps
+        if not hasattr(self, 'created_at'):
+            self.created_at = datetime.now()
+        self.updated_at = datetime.now()
+
+        # Sanitize HTML content
         if self.overview:
-            self.overview = bleach.clean(self.overview)
-        if self.implementation:
-            self.implementation = bleach.clean(self.implementation)
+            self.overview = bleach.clean(
+                self.overview,
+                tags=ALLOWED_HTML_TAGS,
+                attributes=ALLOWED_HTML_ATTRS,
+                strip=True
+            )
+
+        # Sanitize troubleshooting items
+        if self.troubleshooting:
+            for item in self.troubleshooting:
+                item.description = bleach.clean(
+                    item.description,
+                    tags=ALLOWED_HTML_TAGS,
+                    attributes=ALLOWED_HTML_ATTRS,
+                    strip=True
+                )
+                item.solution = bleach.clean(
+                    item.solution,
+                    tags=ALLOWED_HTML_TAGS,
+                    attributes=ALLOWED_HTML_ATTRS,
+                    strip=True
+                )
+
+        # Sanitize best practices
+        if self.best_practices:
+            for practice in self.best_practices:
+                practice.description = bleach.clean(
+                    practice.description,
+                    tags=ALLOWED_HTML_TAGS,
+                    attributes=ALLOWED_HTML_ATTRS,
+                    strip=True
+                )
+
+        # Sanitize implementation guides
+        if self.implementations:
+            for guide in self.implementations:
+                guide.description = bleach.clean(
+                    guide.description,
+                    tags=ALLOWED_HTML_TAGS,
+                    attributes=ALLOWED_HTML_ATTRS,
+                    strip=True
+                )
+
+        # Normalize tags
+        if self.tags:
+            self.tags = list(set(tag.lower().strip() for tag in self.tags if tag))
+
+    @before_event([Insert, Replace])
+    def validate_content_lengths(self) -> None:
+        """Validates content lengths before saving.
+        
+        Raises:
+            ValueError: If content exceeds maximum allowed length
+        """
+        if len(self.name) > MAX_NAME_LENGTH:
+            raise ValueError(f"Name exceeds maximum length of {MAX_NAME_LENGTH} characters")
+            
+        if len(self.description) > MAX_DESCRIPTION_LENGTH:
+            raise ValueError(f"Description exceeds maximum length of {MAX_DESCRIPTION_LENGTH} characters")
+            
+        if self.overview and len(self.overview) > MAX_OVERVIEW_LENGTH:
+            raise ValueError(f"Overview exceeds maximum length of {MAX_OVERVIEW_LENGTH} characters")
+            for item in self.troubleshooting:
+                if item.description:
+                    item.description = bleach.clean(item.description)
+                if item.solution:
+                    item.solution = bleach.clean(item.solution)
+                    
+        # Sanitize best practices
+        if self.best_practices:
+            for practice in self.best_practices:
+                if practice.description:
+                    practice.description = bleach.clean(practice.description)
+                    
+        # Sanitize implementation guides
+        if self.implementations:
+            for impl in self.implementations:
+                if impl.description:
+                    impl.description = bleach.clean(impl.description)
+                if isinstance(impl.steps, list):
+                    impl.steps = [bleach.clean(str(step)) for step in impl.steps if step]
 
     #-------------------------------------------------------------------------
     # Search Methods
@@ -198,7 +310,7 @@ class Tool(Document):
         indexes = [
             # Text index with field weights for relevance-based search
             IndexModel(
-                [("name", TEXT), ("overview", TEXT), ("implementation", TEXT)],
-                weights={"name": 10, "overview": 5, "implementation": 3}
+                [("name", TEXT), ("overview", TEXT), ("implementations", TEXT)],
+                weights={"name": 10, "overview": 5, "implementations": 3}
             )
         ]
