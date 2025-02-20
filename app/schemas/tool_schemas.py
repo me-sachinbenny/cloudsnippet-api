@@ -49,6 +49,7 @@ class CreateToolRequest(BaseModel):
     All fields are validated according to their types and constraints.
     """
     name: str
+    slug: Optional[str]
     description: str
     image: Optional[str] = None
     overview: Optional[str] = None
@@ -63,6 +64,7 @@ class CreateToolRequest(BaseModel):
             "example": {
                 "id": "507f1f77bcf86cd799439011",
                 "name": "Docker",
+                "slug": "docker",
                 "description": "Containerization platform",
                 "image": "https://example.com/docker.png",
                 "overview": "Docker is a platform for developing, shipping, and running applications in containers.",
@@ -110,6 +112,7 @@ class UpdateToolRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     image: Optional[str] = None
+    slug: Optional[str] = None
     overview: Optional[str] = None
     tagline: Optional[str]
     category: Optional[str]
@@ -138,6 +141,7 @@ class ToolDetailResponse(BaseModel):
     id: str
     name: str
     description: str
+    slug: str
     image: str
     overview: Optional[str]
     troubleshooting: List[TroubleshootingItem]

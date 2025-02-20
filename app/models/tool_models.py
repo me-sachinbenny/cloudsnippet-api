@@ -144,26 +144,26 @@ class Tool(Document):
         examples=[["container", "devops", "microservices"]]
     )
 
-    @field_validator('overview', 'implementations', check_fields=False)
-    @classmethod
-    def sanitize_html(cls, v: Optional[str]) -> Optional[str]:
-        """Sanitize HTML content to prevent XSS attacks."""
-        if not v:
-            return v
-        return bleach.clean(
-            v,
-            tags=ALLOWED_HTML_TAGS,
-            attributes=ALLOWED_HTML_ATTRS,
-            strip=True
-        )
+    # @field_validator('overview', 'implementations', check_fields=False)
+    # @classmethod
+    # def sanitize_html(cls, v: Optional[str]) -> Optional[str]:
+    #     """Sanitize HTML content to prevent XSS attacks."""
+    #     if not v:
+    #         return v
+    #     return bleach.clean(
+    #         v,
+    #         tags=ALLOWED_HTML_TAGS,
+    #         attributes=ALLOWED_HTML_ATTRS,
+    #         strip=True
+    #     )
 
-    @field_validator('tags')
-    @classmethod
-    def normalize_tags(cls, v: List[str]) -> List[str]:
-        """Normalize tags to lowercase and remove duplicates."""
-        if not v:
-            return []
-        return list(set(tag.lower().strip() for tag in v if tag))
+    # @field_validator('tags')
+    # @classmethod
+    # def normalize_tags(cls, v: List[str]) -> List[str]:
+    #     """Normalize tags to lowercase and remove duplicates."""
+    #     if not v:
+    #         return []
+    #     return list(set(tag.lower().strip() for tag in v if tag))
 
     #-------------------------------------------------------------------------
     # Metadata Fields
@@ -182,109 +182,109 @@ class Tool(Document):
     # Event Hooks
     #-------------------------------------------------------------------------
 
-    @before_event([Insert, Replace])
-    def pre_save_hook(self) -> None:
-        """Pre-save hook for data validation and processing.
+    # @before_event([Insert, Replace])
+    # def pre_save_hook(self) -> None:
+    #     """Pre-save hook for data validation and processing.
         
-        Performs the following operations:
-        1. Generates slug if not present
-        2. Updates timestamps
-        3. Sanitizes HTML content
-        4. Normalizes tags
-        5. Validates content lengths
-        """
-        # Generate slug if not present (only for new documents)
-        if not self.slug:
-            self.slug = slugify(self.name)
+    #     Performs the following operations:
+    #     1. Generates slug if not present
+    #     2. Updates timestamps
+    #     3. Sanitizes HTML content
+    #     4. Normalizes tags
+    #     5. Validates content lengths
+    #     """
+    #     # Generate slug if not present (only for new documents)
+    #     if not self.slug:
+    #         self.slug = slugify(self.name)
 
-        # Update timestamps
-        if not hasattr(self, 'created_at'):
-            self.created_at = datetime.now()
-        self.updated_at = datetime.now()
+    #     # Update timestamps
+    #     if not hasattr(self, 'created_at'):
+    #         self.created_at = datetime.now()
+    #     self.updated_at = datetime.now()
 
-        # Sanitize HTML content
-        if self.overview:
-            self.overview = bleach.clean(
-                self.overview,
-                tags=ALLOWED_HTML_TAGS,
-                attributes=ALLOWED_HTML_ATTRS,
-                strip=True
-            )
+    #     # Sanitize HTML content
+    #     if self.overview:
+    #         self.overview = bleach.clean(
+    #             self.overview,
+    #             tags=ALLOWED_HTML_TAGS,
+    #             attributes=ALLOWED_HTML_ATTRS,
+    #             strip=True
+    #         )
 
-        # Sanitize troubleshooting items
-        if self.troubleshooting:
-            for item in self.troubleshooting:
-                item.description = bleach.clean(
-                    item.description,
-                    tags=ALLOWED_HTML_TAGS,
-                    attributes=ALLOWED_HTML_ATTRS,
-                    strip=True
-                )
-                item.solution = bleach.clean(
-                    item.solution,
-                    tags=ALLOWED_HTML_TAGS,
-                    attributes=ALLOWED_HTML_ATTRS,
-                    strip=True
-                )
+    #     # Sanitize troubleshooting items
+    #     if self.troubleshooting:
+    #         for item in self.troubleshooting:
+    #             item.description = bleach.clean(
+    #                 item.description,
+    #                 tags=ALLOWED_HTML_TAGS,
+    #                 attributes=ALLOWED_HTML_ATTRS,
+    #                 strip=True
+    #             )
+    #             item.solution = bleach.clean(
+    #                 item.solution,
+    #                 tags=ALLOWED_HTML_TAGS,
+    #                 attributes=ALLOWED_HTML_ATTRS,
+    #                 strip=True
+    #             )
 
-        # Sanitize best practices
-        if self.best_practices:
-            for practice in self.best_practices:
-                practice.description = bleach.clean(
-                    practice.description,
-                    tags=ALLOWED_HTML_TAGS,
-                    attributes=ALLOWED_HTML_ATTRS,
-                    strip=True
-                )
+    #     # Sanitize best practices
+    #     if self.best_practices:
+    #         for practice in self.best_practices:
+    #             practice.description = bleach.clean(
+    #                 practice.description,
+    #                 tags=ALLOWED_HTML_TAGS,
+    #                 attributes=ALLOWED_HTML_ATTRS,
+    #                 strip=True
+    #             )
 
-        # Sanitize implementation guides
-        if self.implementations:
-            for guide in self.implementations:
-                guide.description = bleach.clean(
-                    guide.description,
-                    tags=ALLOWED_HTML_TAGS,
-                    attributes=ALLOWED_HTML_ATTRS,
-                    strip=True
-                )
+    #     # Sanitize implementation guides
+    #     if self.implementations:
+    #         for guide in self.implementations:
+    #             guide.description = bleach.clean(
+    #                 guide.description,
+    #                 tags=ALLOWED_HTML_TAGS,
+    #                 attributes=ALLOWED_HTML_ATTRS,
+    #                 strip=True
+    #             )
 
-        # Normalize tags
-        if self.tags:
-            self.tags = list(set(tag.lower().strip() for tag in self.tags if tag))
+    #     # Normalize tags
+    #     if self.tags:
+    #         self.tags = list(set(tag.lower().strip() for tag in self.tags if tag))
 
-    @before_event([Insert, Replace])
-    def validate_content_lengths(self) -> None:
-        """Validates content lengths before saving.
+    # @before_event([Insert, Replace])
+    # def validate_content_lengths(self) -> None:
+    #     """Validates content lengths before saving.
         
-        Raises:
-            ValueError: If content exceeds maximum allowed length
-        """
-        if len(self.name) > MAX_NAME_LENGTH:
-            raise ValueError(f"Name exceeds maximum length of {MAX_NAME_LENGTH} characters")
+    #     Raises:
+    #         ValueError: If content exceeds maximum allowed length
+    #     """
+    #     if len(self.name) > MAX_NAME_LENGTH:
+    #         raise ValueError(f"Name exceeds maximum length of {MAX_NAME_LENGTH} characters")
             
-        if len(self.description) > MAX_DESCRIPTION_LENGTH:
-            raise ValueError(f"Description exceeds maximum length of {MAX_DESCRIPTION_LENGTH} characters")
+    #     if len(self.description) > MAX_DESCRIPTION_LENGTH:
+    #         raise ValueError(f"Description exceeds maximum length of {MAX_DESCRIPTION_LENGTH} characters")
             
-        if self.overview and len(self.overview) > MAX_OVERVIEW_LENGTH:
-            raise ValueError(f"Overview exceeds maximum length of {MAX_OVERVIEW_LENGTH} characters")
-            for item in self.troubleshooting:
-                if item.description:
-                    item.description = bleach.clean(item.description)
-                if item.solution:
-                    item.solution = bleach.clean(item.solution)
+    #     if self.overview and len(self.overview) > MAX_OVERVIEW_LENGTH:
+    #         raise ValueError(f"Overview exceeds maximum length of {MAX_OVERVIEW_LENGTH} characters")
+    #         for item in self.troubleshooting:
+    #             if item.description:
+    #                 item.description = bleach.clean(item.description)
+    #             if item.solution:
+    #                 item.solution = bleach.clean(item.solution)
                     
-        # Sanitize best practices
-        if self.best_practices:
-            for practice in self.best_practices:
-                if practice.description:
-                    practice.description = bleach.clean(practice.description)
+    #     # Sanitize best practices
+    #     if self.best_practices:
+    #         for practice in self.best_practices:
+    #             if practice.description:
+    #                 practice.description = bleach.clean(practice.description)
                     
-        # Sanitize implementation guides
-        if self.implementations:
-            for impl in self.implementations:
-                if impl.description:
-                    impl.description = bleach.clean(impl.description)
-                if isinstance(impl.steps, list):
-                    impl.steps = [bleach.clean(str(step)) for step in impl.steps if step]
+    #     # Sanitize implementation guides
+    #     if self.implementations:
+    #         for impl in self.implementations:
+    #             if impl.description:
+    #                 impl.description = bleach.clean(impl.description)
+    #             if isinstance(impl.steps, list):
+    #                 impl.steps = [bleach.clean(str(step)) for step in impl.steps if step]
 
     #-------------------------------------------------------------------------
     # Search Methods
