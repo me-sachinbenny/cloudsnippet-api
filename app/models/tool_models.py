@@ -38,11 +38,22 @@ ALLOWED_HTML_ATTRS = {'*': ['class']}
 # Model Definition
 #-----------------------------------------------------------------------------
 
+class RootCause(BaseModel):
+    description: str
+    factors: List[str]
+
+class Solution(BaseModel):
+    steps: List[str]
+    prevention_tips: List[str]
+
 class TroubleshootingItem(BaseModel):
     id: str
     title: str
     description: str
-    solution: str
+    severity: str
+    symptoms: List[str]
+    root_cause: RootCause
+    solution: Solution
 
 class BestPractice(BaseModel):
     id: str
@@ -108,17 +119,17 @@ class Tool(Document):
     # Detailed Content Fields
     #-------------------------------------------------------------------------
 
-    overview: Optional[str] = Field(
-        None,
+    overview: str = Field(
+        ...,
         description="Detailed overview",
         max_length=MAX_OVERVIEW_LENGTH
     )
-    tagline: Optional[str] = Field(
-        None,
+    tagline: str = Field(
+        ...,
         description="Short tagline for tool",
     )
-    category: Optional[str] = Field(
-        None,
+    category: str = Field(
+        ...,
         description="Category of tool",
     )
     troubleshooting: List[TroubleshootingItem] = Field(

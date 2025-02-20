@@ -25,11 +25,22 @@ from pydantic import BaseModel
 #-----------------------------------------------------------------------------
 # Request Schemas
 #-----------------------------------------------------------------------------
+class RootCause(BaseModel):
+    description: str
+    factors: List[str]
+
+class Solution(BaseModel):
+    steps: List[str]
+    prevention_tips: List[str]
+
 class TroubleshootingItem(BaseModel):
     id: str
     title: str
     description: str
-    solution: str
+    severity: str
+    symptoms: List[str]
+    root_cause: RootCause
+    solution: Solution
 
 class BestPractice(BaseModel):
     id: str
@@ -52,12 +63,13 @@ class CreateToolRequest(BaseModel):
     slug: Optional[str]
     description: str
     image: Optional[str] = None
-    overview: Optional[str] = None
+    overview: str
+    tagline: str
+    category: str
     troubleshooting: List[TroubleshootingItem]
     best_practices: List[BestPractice]
     implementations: List[ImplementationGuide]
-    tagline: Optional[str]
-    category: Optional[str]
+    tags: List[str] = []
 
     class Config:
         json_schema_extra = {
@@ -114,11 +126,12 @@ class UpdateToolRequest(BaseModel):
     image: Optional[str] = None
     slug: Optional[str] = None
     overview: Optional[str] = None
-    tagline: Optional[str]
-    category: Optional[str]
-    troubleshooting: List[TroubleshootingItem]
-    best_practices: List[BestPractice]
-    implementations: List[ImplementationGuide]
+    tagline: Optional[str] = None
+    category: Optional[str] = None
+    troubleshooting: Optional[List[TroubleshootingItem]] = None
+    best_practices: Optional[List[BestPractice]] = None
+    implementations: Optional[List[ImplementationGuide]] = None
+    tags: Optional[List[str]] = None
 
     class Config:
         json_schema_extra = {
