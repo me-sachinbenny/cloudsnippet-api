@@ -22,36 +22,30 @@ from pydantic import BaseModel, Field, field_validator
 
 # Framework imports
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from fastapi import HTTPException, status
-from pymongo.errors import DuplicateKeyError
+
+# Exception handling
+from ..exceptions.repository_exceptions import (
+    DuplicateEntityException,
+    EntityNotFoundException,
+    InvalidIdentifierException
+)
+from ..exceptions.error_handler import RepositoryErrorHandler
 
 # Application imports
 from ...models.tool_models import Tool
+from ...schemas.best_practice_schema import BestPractice
+from ...schemas.implementation_schema import ImplementationGuide
+from ...schemas.troubleshooting_schemas import TroubleshootingItem
+
 
 
 #-----------------------------------------------------------------------------
 # Repository Implementation
 #-----------------------------------------------------------------------------
 
-class ToolProjection(BaseModel):
-    id: str
-    name: str
-    description: str = Field(default="")
-    slug: str = Field(default="")
-    image: str = Field(default="")
 
-    model_config = {
-        "validate_assignment": True,
-        "extra": "ignore"
-    }
 
-def document_to_dict_with_str_id(document) -> dict:
-    doc_dict = document.dict()
-    doc_dict["id"] = str(document.id)
-    # Ensure required fields have default values
-    doc_dict["slug"] = doc_dict.get("slug", "") or ""
-    doc_dict["image"] = doc_dict.get("image", "") or ""
-    return doc_dict
+
 
 class ToolsRepository:
     """Repository for handling tool-related database operations."""
@@ -64,85 +58,117 @@ class ToolsRepository:
     # Create Operations
     #-------------------------------------------------------------------------
     
+    @RepositoryErrorHandler.handle_operation
     async def create(self, tool_data: dict) -> Tool:
         """Creates a new tool document in MongoDB."""
-        try:
+        tool = Tool(**tool_data)
+        await tool.insert()
+        return tool
+    
+    @RepositoryErrorHandler.handle_operation
+    async def create_many(self, tools_data: List[dict]) -> List[Tool]:
+        """Creates multiple tool documents in MongoDB."""
+        tools = []
+        for tool_data in tools_data:
             tool = Tool(**tool_data)
             await tool.insert()
-            return tool
-        except DuplicateKeyError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Tool with name '{tool.name}' already exists"
-            )
+            tools.append(tool)
+        return tools
+    
+    @RepositoryErrorHandler.handle_operation
+    async def _create_best_practices(self, items: List[dict]) -> List[BestPractice]:
+        for item in items:
+            item["id"] = self._generate_id("bp", item)
+            best_practice = BestPractice(**item)
+            await best_practice.insert()
+            return best_practice
+    
+    @RepositoryErrorHandler.handle_operation
+    async def _create_troubleshooting_items(self, items: List[dict]) -> List[TroubleshootingItem]:
+        for item in items:
+            item["id"] = self._generate_id("tr", item)
+            troubleshooting_item = TroubleshootingItem(**item)
+            await troubleshooting_item.insert()
+            return troubleshooting_item
+
+    
+    @RepositoryErrorHandler.handle_operation
+    async def _create_root_causes(self, items: List[dict]) -> List[RootCause]:
+        for item in items:
+            item["id"] = self._generate_id("rc", item)
+            root_cause = RootCause(**item)
+            await root_cause.insert()
+            return root_cause
+
+    
+    @RepositoryErrorHandler.handle_operation
+    async def _create_solutions(self, items: List[dict]) -> List[Solution]:
+        for item in items:
+            item["id"] = self._generate_id("so", item)
+            solution = Solution(**item)
+            await solution.insert()
+            return solution
+
+
 
     #-------------------------------------------------------------------------
     # Read Operations (Direct Lookups)
     #-------------------------------------------------------------------------
     
+    @RepositoryErrorHandler.handle_operation
     async def get_by_id(self, tool_id: str) -> Optional[Tool]:
         """Retrieves a tool document by its unique identifier."""
-        try:
-            object_id = ObjectId(tool_id)
-            tool = await Tool.find_one({"_id": object_id})
-            if not tool:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Tool with id '{tool_id}' not found"
-                )
-            return tool
-        except (ValueError, TypeError) as e:
-            print(f"Error converting ID: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid tool ID format"
-            )
+        object_id = ObjectId(tool_id)
+        tool = await Tool.find_one({"_id": object_id})
+        if not tool:
+            raise EntityNotFoundException("Tool", "id", tool_id)
+        return tool
     
+    @RepositoryErrorHandler.handle_operation
     async def get_by_slug(self, slug: str) -> Optional[Tool]:
         """Retrieves a tool document by its URL-friendly slug."""
         tool = await Tool.find_one(Tool.slug == slug)
         if not tool:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Tool with slug '{slug}' not found"
-            )
+            raise EntityNotFoundException("Tool", "slug", slug)
         return tool
 
     #-------------------------------------------------------------------------
     # List Operations (Pagination)
     #-------------------------------------------------------------------------
     
-    async def list_all(self, skip: int = 0, limit: int = 10) -> Tuple[List[ToolProjection], int]:
-        tools_raw = await Tool.find_all().skip(skip).limit(limit).to_list()
+    async def list_all(self, skip: int = 0, limit: int = 10) -> Tuple[List[Tool], int]:
+        tools = await Tool.find_all().skip(skip).limit(limit).to_list()
         total = await Tool.count()
-
-        tools = []
-        for tool in tools_raw:
-            tool_dict = document_to_dict_with_str_id(tool)
-            # Ensure required fields have non-None values
-            tool_dict["slug"] = tool_dict.get("slug") or ""
-            tool_dict["image"] = tool_dict.get("image") or ""
-            tool_dict["description"] = tool_dict.get("description", "")
-            tools.append(ToolProjection(**tool_dict))
-
         return tools, total
 
     #-------------------------------------------------------------------------
     # Update Operations
     #-------------------------------------------------------------------------
     
+    @RepositoryErrorHandler.handle_operation
     async def update(self, tool_id: str, tool_data: dict) -> Tool:
         """Updates an existing tool document with new data."""
         tool = await self.get_by_id(tool_id)
-        try:
+        await tool.set(tool_data)
+        return tool
+ 
+    
+    @RepositoryErrorHandler.handle_operation
+    async def update_many(self, tools_data: List[dict]) -> List[Tool]:
+        tools = []
+        for tool_data in tools_data:
+            tool = await self.get_by_id(tool_data.get("id"))
             await tool.set(tool_data)
-            return tool
-        except DuplicateKeyError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Tool with name '{tool_data.get('name')}' already exists"
-            )
-
+            tools.append(tool)
+        return tools
+    
+    @RepositoryErrorHandler.handle_operation
+    async def update_field(self, tool_id: str, field_name: str, field_data: dict) -> Tool:
+        """Updates a specific field of a tool document."""
+        tool = await self.get_by_id(tool_id)
+        await tool.set({field_name: field_data})
+        return tool
+    
     #-------------------------------------------------------------------------
     # Delete Operations
     #-------------------------------------------------------------------------

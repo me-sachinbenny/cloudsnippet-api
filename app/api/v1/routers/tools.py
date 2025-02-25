@@ -17,10 +17,11 @@ All endpoints use MongoDB for persistence and follow REST conventions.
 from fastapi import APIRouter, Depends, Query, status
 from typing import List, Optional
 
+import re  
 
 # Application imports
 from ....schemas.tool_schemas import (
-    CreateToolRequest, UpdateToolRequest,
+    CreateToolRequest, UpdateToolRequest,DeleteToolRequest,
     ToolDetailResponse, ToolBriefResponse,
     ToolListResponse
 )
@@ -69,19 +70,28 @@ router = APIRouter(
     description="Create a new tool with the provided data. Name must be unique."
 )
 async def create_tool(
-    tool_data: CreateToolRequest,
+    tool_data: CreateToolRequest,   
     service: ToolService = Depends(get_tool_service)
 ) -> ToolDetailResponse:
-    """Create a new tool in the system.
-    
-    Args:
-        tool_data: Tool creation data
-        service: ToolService instance
-        
-    Returns:
-        ToolDetailResponse: Created tool details
-    """
+    """Create a new tool in the system."""
     return await service.create(tool_data)
+
+@router.post(
+    "/generate-components",
+    response_model=List[ToolDetailResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Generate tool components from a query",
+    description="Extract tool names from input and create/update tool components using AI."
+)
+async def generate_components(
+    query: str,
+    service: ToolService = Depends(get_tool_service)
+) -> List[ToolDetailResponse]:
+    """Generate tool components from a query."""
+    return await service.generate_components(query)
+
+
+  
 
 #-----------------------------------------------------------------------------
 # Read Operations
@@ -181,9 +191,9 @@ async def update_tool(
     description="Delete a tool from the system."
 )
 async def delete_tool(
-    tool_id: str,
+    tool_data: DeleteToolRequest,
     service: ToolService = Depends(get_tool_service)
 ) -> None:
     """Delete a tool from the system."""
-    await service.delete(tool_id)
+    await service.delete(tool_data.id)
 

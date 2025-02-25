@@ -20,38 +20,15 @@ from typing import Optional, List
 from datetime import datetime
 
 # Validation imports
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from .troubleshooting_schemas import TroubleshootingItem
+from .implementation_schema import ImplementationGuide
+from .best_practice_schema import BestPractice
 
 #-----------------------------------------------------------------------------
 # Request Schemas
 #-----------------------------------------------------------------------------
-class RootCause(BaseModel):
-    description: str
-    factors: List[str]
-
-class Solution(BaseModel):
-    steps: List[str]
-    prevention_tips: List[str]
-
-class TroubleshootingItem(BaseModel):
-    id: str
-    title: str
-    description: str
-    severity: str
-    symptoms: List[str]
-    root_cause: RootCause
-    solution: Solution
-
-class BestPractice(BaseModel):
-    id: str
-    title: str
-    description: str
-
-class ImplementationGuide(BaseModel):
-    id: str
-    title: str
-    description: str
-    steps: List[str]
 
 class CreateToolRequest(BaseModel):
     """Schema for tool creation endpoint.
@@ -140,6 +117,12 @@ class UpdateToolRequest(BaseModel):
                 "best_practices": ["New best practice"]
             }
         }
+
+class DeleteToolRequest(BaseModel):
+    """Schema for tool deletion endpoint."""
+    id: str
+
+
 
 #-----------------------------------------------------------------------------
 # Response Schemas
@@ -238,3 +221,28 @@ class ToolListResponse(BaseModel):
                 "limit": 10
             }
         }
+
+
+#-----------------------------------------------------------------------------
+# State Schemas
+#-----------------------------------------------------------------------------
+class ReviewAction(BaseModel):
+    task: str  # "approve" or "approve_with_updates"
+    details: Optional[str]  # "Add more best practices for security"
+    status: str = "pending"  # "pending", "processed"
+    processed_at: Optional[datetime] = None
+
+class ToolState(BaseModel):
+    """Strict schema for LangGraph AI Workflow"""
+    tool_id: str = Field(..., description="Unique Tool ID")
+    name: str = Field(..., description="Tool Name")
+    description: str = Field(..., description="Tool Description")
+    image: Optional[str] = None
+    overview: str
+    tagline: str
+    category: str
+    troubleshooting: List[TroubleshootingItem] = []
+    best_practices: List[BestPractice] = []
+    status: str = "needs_review"  # needs_review → needs_processing → approved
+    review_actions: List[ReviewAction] = []
+    updated_at: datetime = Field(default_factory=datetime.now)
