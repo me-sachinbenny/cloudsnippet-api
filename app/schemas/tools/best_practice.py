@@ -10,7 +10,7 @@ class BestPractice(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, value: str) -> str:
-        """Ensure ID starts with 'bp-'"""
+        """Validates the ID format."""
         if not re.match(r"^bp-", value):
             raise ValueError("ID must start with 'bp-'")
         return value

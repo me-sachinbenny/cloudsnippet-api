@@ -20,7 +20,7 @@ Design Principles:
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import json
-import logging
+from ....app.core.logging import get_logger
 
 # Third-party imports
 from langgraph.graph import StateGraph, START, END
@@ -45,8 +45,8 @@ from ..exceptions.ai_exceptions import (
     TokenLimitError
 )
 
-# Configure logging
-logger = logging.getLogger(__name__)
+# Configure logger
+logger = get_logger(__name__)
 
 #-----------------------------------------------------------------------------
 # Constants

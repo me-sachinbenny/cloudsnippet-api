@@ -1,12 +1,12 @@
 from typing import Any, Optional, Union, Dict, List, Callable
 from datetime import timedelta
 import asyncio
-import logging
 from .base import BaseCache
+from ...core.logging import get_logger
 from .memory_cache import MemoryCache
 from .redis_cache import RedisCache
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class CacheManager:
     """

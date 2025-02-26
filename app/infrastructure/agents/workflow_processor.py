@@ -19,7 +19,7 @@ Design Principles:
 # Standard library imports
 from datetime import datetime
 from typing import Dict, Any, List
-import logging
+from ....app.core.logging import get_logger
 
 # Third-party imports
 from langgraph.graph import StateGraph, START, END
@@ -34,7 +34,7 @@ from ...schemas.tool_schemas import (
 )
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 #-----------------------------------------------------------------------------
 # Constants
@@ -51,8 +51,8 @@ WORKFLOW_STEPS = {
 #-----------------------------------------------------------------------------
 
 # Import error handling
-from ..exceptions.workflow_error_handler import WorkflowErrorHandler
-from ..exceptions.workflow_exceptions import WorkflowConfigurationError
+from ..exceptions import WorkflowErrorHandler
+from ..exceptions import WorkflowConfigurationError
 
 class WorkflowProcessor:
     """Manages the workflow for processing tool content."""

@@ -10,8 +10,8 @@ It follows the 3:1:1 rule for code structure, testability, and maintainability:
 
 from typing import TypeVar, Callable, Any, Dict
 from functools import wraps
-import logging
 from datetime import datetime
+from ..core.logging import get_logger
 
 from .ai_exceptions import (
     AIException,
@@ -22,7 +22,7 @@ from .ai_exceptions import (
 )
 
 T = TypeVar('T')
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class AIErrorHandler:
     """Handles AI operation errors with structured logging and error mapping"""

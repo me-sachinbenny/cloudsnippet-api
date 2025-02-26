@@ -2,18 +2,15 @@ from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from .api.v1.routers import tools, health
-from .core.exceptions.base import AppException
-from .core.exceptions.handlers import app_exception_handler,validation_exception_handler,python_exception_handler
+from .exceptions import AppException
+from .exceptions import app_exception_handler,validation_exception_handler,python_exception_handler
 
 from .infrastructure.database.mongodb import close_mongodb_connection
 
-import logging
+from .core.logging import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure application logger
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="CloudSnippet API",

@@ -7,8 +7,8 @@ It converts workflow-specific exceptions into appropriate responses and handles 
 
 from typing import TypeVar, Callable, Any
 from functools import wraps
-import logging
 from datetime import datetime
+from ..core.logging import get_logger
 
 from .workflow_exceptions import (
     WorkflowException,
@@ -19,7 +19,7 @@ from .workflow_exceptions import (
 )
 
 T = TypeVar('T')
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class WorkflowErrorHandler:
     """Handles workflow operation errors and provides logging"""

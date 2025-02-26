@@ -1,15 +1,7 @@
 """
 Tool Service Layer
 
-This module implements the service layer for tool operations including:
-- CRUD operations for tools
-- Data transformation between API and database formats
-- Business logic implementation
-- Response preparation and validation
-- Search and filtering functionality
-
-The service layer acts as an intermediary between the API routes and the
-database repository, ensuring proper data validation and transformation.
+This module implements the service layer for tool operations.
 """
 
 #-----------------------------------------------------------------------------
@@ -24,21 +16,20 @@ from typing import List, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 # Application imports
-from ..models.tool_models import ToolState
-from ..infrastructure.agents.data_generator import AI_Data_Generator
+from ..schemas import (
+    # Base schemas
+    Tool, ToolUpdate, ToolProjection, ToolState,
+    # Request schemas
+    CreateToolRequest, UpdateToolRequest,
+    # Response schemas
+    ToolDetailResponse, ToolBriefResponse, ToolListResponse,
+    # Component schemas
+    TroubleshootingItem, ImplementationGuide, ImplementationStep,
+    BestPractice, RootCause, Solution
+)
 
 # Utility imports
 from ..utlis.findTools import FindTools
-
-# Framework imports
-from motor.motor_asyncio import AsyncIOMotorDatabase
-
-# Application imports
-from ..schemas.tool_schemas import CreateToolRequest, UpdateToolRequest
-from ..schemas.tool_schemas import ToolDetailResponse, ToolBriefResponse, ToolListResponse
-
-from ..schemas.tool_projection import ToolProjection
-from ..schemas.implementation_schema import ImplementationGuide
 
 from ..infrastructure.repositories.tools_repository import ToolsRepository
 
@@ -49,14 +40,15 @@ from ..infrastructure.repositories.tools_repository import ToolsRepository
 #-----------------------------------------------------------------------------
 
 class ToolService:
-    """Service layer for managing tool operations with business logic."""
+    """Service layer for managing tool operations."""
 
     def __init__(self, db: AsyncIOMotorDatabase , ):
         """Initialize service with database connection."""
         self.repository = ToolsRepository(db)
-        self.generator = AI_Data_Generator(db, )
+        # self.generator = AI_Data_Generator(db, )
     
     def document_to_dict_with_str_id(self, document) -> dict:
+        """Transforms a document to a dictionary with string ID."""
         doc_dict = document.dict()
         doc_dict["id"] = str(document.id)
         # Ensure required fields have default values
@@ -69,11 +61,7 @@ class ToolService:
     #-------------------------------------------------------------------------
 
     def _prepare_response(self, data: Any) -> Dict[str, Any]:
-        """Transforms MongoDB document format to API response format.
-        
-        Handles both dictionary and Beanie Document inputs by converting them
-        to a format suitable for Pydantic response models.
-        """
+        """Transforms document format to API response format."""
         if hasattr(data, 'model_dump'):
             # If it's a Beanie Document or Pydantic model
             data_dict = data.model_dump()
@@ -93,100 +81,31 @@ class ToolService:
     #-------------------------------------------------------------------------
 
     async def create(self, data: CreateToolRequest) -> ToolDetailResponse:
-        """Creates a new tool in the database and returns its details."""
+        """Creates a new tool."""
         tool = await self.repository.create(data.model_dump())
         return ToolDetailResponse(**self._prepare_response(tool))
 
-    async def generate_components(self, query: str) -> List[ToolDetailResponse]:
-        """Generate tool components from a natural language query."""
-        # Extract tool names from the query using utility
-        candidate_tool_names = FindTools.extract_tool_names(query)
+    # async def generate_components(self, query: str) -> List[ToolDetailResponse]:
+    #     """Generate tool components from a query."""
+    #     # Extract tool names from the query using utility
+    #     candidate_tool_names = FindTools.extract_tool_names(query)
         
-        # Generate tool data for each candidate using AI
-        tool_creation_requests: List[CreateToolRequest] = []
-        for tool_name in candidate_tool_names:
-            ai_generated_tool = await self.generator.initial_query(tool_name)
-            tool_creation_requests.append(ai_generated_tool)
+    #     # Generate tool data for each candidate using AI
+    #     tool_creation_requests: List[CreateToolRequest] = []
+    #     for tool_name in candidate_tool_names:
+    #         ai_generated_tool = await self.generator.initial_query(tool_name)
+    #         tool_creation_requests.append(ai_generated_tool)
 
-        # Bulk create tools in database
-        created_tools = await self.repository.create_many([
-            tool_request.model_dump() for tool_request in tool_creation_requests
-        ])
+    #     # Bulk create tools in database
+    #     created_tools = await self.repository.create_many([
+    #         tool_request.model_dump() for tool_request in tool_creation_requests
+    #     ])
         
-        # Transform to response format
-        return [ToolDetailResponse(**self._prepare_response(tool)) for tool in created_tools]
-
-
-    #-------------------------------------------------------------------------
-    # Read Operations (Direct Lookups)
-    #-------------------------------------------------------------------------
-
-    async def get_by_id(self, tool_id: str) -> ToolDetailResponse:
-        """Get a specific tool by ID."""
-        tool = await self.repository.get_by_id(tool_id)
-        return ToolDetailResponse(**self._prepare_response(tool))
+    #     # Transform to response format
+    #     return [ToolDetailResponse(**self._prepare_response(tool)) for tool in created_tools]
     
-    async def get_by_slug(self, slug: str) -> ToolDetailResponse:
-        """Retrieves a specific tool using its URL-friendly slug identifier."""
-        tool = await self.repository.get_by_slug(slug)
-        return ToolDetailResponse(**self._prepare_response(tool))
-
-    #-------------------------------------------------------------------------
-    # List Operations (Pagination)
-    #-------------------------------------------------------------------------
-
-
-
-    async def list_all(self, skip: int = 0, limit: int = 10) -> ToolListResponse:
-        """Retrieves a paginated list of tools with total count and pagination metadata."""
-        tools_raw, total = await self.repository.list_all(skip, limit)
-        tools = []
-        for tool in tools_raw:
-            tool_dict = self.document_to_dict_with_str_id(tool)
-            tools.append(ToolProjection(**tool_dict))
-        return ToolListResponse(
-            items=[ToolBriefResponse(**self._prepare_response(t)) for t in tools],
-            total=total,
-            skip=skip,
-            limit=limit)
-
-    #-------------------------------------------------------------------------
-    # AI Review Operations
-    #-------------------------------------------------------------------------
-
-
-        
-    #-------------------------------------------------------------------------
-    # Update Operations
-    #-------------------------------------------------------------------------
-
-    async def update(self, tool_id: str, data: UpdateToolRequest) -> ToolDetailResponse:
-        """Updates an existing tool with new data and updates the timestamp."""
-        update_data = data.model_dump(exclude_unset=True)
-        update_data["updated_at"] = datetime.now()
-        tool = await self.repository.update(tool_id, update_data)
-        return ToolDetailResponse(**self._prepare_response(tool))
-    
-    async def update_root_cause(self, tool_id: str, cause_data: dict) -> ToolDetailResponse:
-        """Updates the root cause of a tool."""
-        # Validate root cause data
-        root_cause = RootCause(**cause_data)
-        
-        # Update the tool's root cause field
-        updated_tool = await self.repository.update_field(tool_id, "root_cause", root_cause.dict())
-        return ToolDetailResponse(**self._prepare_response(updated_tool))
-    
-    async def update_implementation_guide(self, tool_id: str, guide_data: dict) -> ToolDetailResponse:
-        """Updates the implementation guide of a tool."""
-        # Validate implementation guide data
-        guide = ImplementationGuide(**guide_data)
-        
-        # Update the tool's implementation guide field
-        updated_tool = await self.repository.update_field(tool_id, "implementation_guide", guide.dict())
-        return ToolDetailResponse(**self._prepare_response(updated_tool))
-
     async def create_many(self, tools_data: List[dict]) -> List[ToolDetailResponse]:
-        """Creates multiple tools with validation."""
+        """Creates multiple tools."""
         # Validate data using Pydantic model
         validated_tools = []
         for data in tools_data:
@@ -200,11 +119,70 @@ class ToolService:
         return [ToolDetailResponse(**self._prepare_response(tool)) for tool in created_tools]
 
     #-------------------------------------------------------------------------
+    # Read Operations (Direct Lookups)
+    #-------------------------------------------------------------------------
+
+    async def get_by_id(self, tool_id: str) -> ToolDetailResponse:
+        """Gets a tool by ID."""
+        tool = await self.repository.get_by_id(tool_id)
+        return ToolDetailResponse(**self._prepare_response(tool))
+    
+    async def get_by_slug(self, slug: str) -> ToolDetailResponse:
+        """Retrieves a tool using its slug."""
+        tool = await self.repository.get_by_slug(slug)
+        return ToolDetailResponse(**self._prepare_response(tool))
+
+    #-------------------------------------------------------------------------
+    # List Operations (Pagination)
+    #-------------------------------------------------------------------------
+
+    async def list_all(self, skip: int = 0, limit: int = 10) -> ToolListResponse:
+        """Retrieves a paginated list of tools."""
+        tools_raw, total = await self.repository.list_all(skip, limit)
+        tools = []
+        for tool in tools_raw:
+            tool_dict = self.document_to_dict_with_str_id(tool)
+            tools.append(ToolProjection(**tool_dict))
+        return ToolListResponse(
+            items=[ToolBriefResponse(**self._prepare_response(t)) for t in tools],
+            total=total,
+            skip=skip,
+            limit=limit)
+        
+    #-------------------------------------------------------------------------
+    # Update Operations
+    #-------------------------------------------------------------------------
+
+    async def update_tool(self, tool_id: str, data: UpdateToolRequest) -> ToolDetailResponse:
+        """Updates an existing tool."""
+        update_data = data.model_dump(exclude_unset=True)
+        update_data["updated_at"] = datetime.now()
+        tool = await self.repository.update(tool_id, update_data)
+        return ToolDetailResponse(**self._prepare_response(tool))
+    
+    async def update_tool_field(self, tool_id: str, fields_data: dict,field_name: str) -> ToolDetailResponse:
+        """Updates a specific field of a tool."""
+        field_mapping = {
+            "root_cause" : RootCause,
+            "solution" : Solution,
+            "troubleshooting" : TroubleshootingItem,
+            "best_practices" : BestPractice,
+            "implementation_guides" : ImplementationGuide
+        }
+        field_type = field_mapping.get(field_name)
+        if not field_type:
+            raise ValueError(f"Invalid field name: {field_name}")
+        fields_data = field_type.model_validate(fields_data)
+        tool = await self.repository.update_field(tool_id, field_name, fields_data)
+        return ToolDetailResponse(**self._prepare_response(tool))
+
+
+    #-------------------------------------------------------------------------
     # Delete Operations
     #-------------------------------------------------------------------------
 
     async def delete(self, tool_id: str) -> None:
-        """Verifies tool existence and removes it from the database."""
+        """Removes a tool from the database."""
         # First verify the tool exists
         await self.get_by_id(tool_id)
         # Then delete it through the repository
@@ -215,14 +193,11 @@ class ToolService:
     #-------------------------------------------------------------------------
         
     async def search(self, query: str) -> List[ToolBriefResponse]:
-        """Performs a text search across tool fields and returns matching tools."""
+        """Performs a text search across tool fields."""
         tools = await self.repository.search(query)
         return [ToolBriefResponse(**self._prepare_response(t)) for t in tools]
     
     async def find_by_tag(self, tag: str) -> List[ToolBriefResponse]:
-        """Filters and returns tools that have the specified tag."""
+        """Filters tools by tag."""
         tools = await self.repository.find_by_tag(tag)
         return [ToolBriefResponse(**self._prepare_response(t)) for t in tools]
-        
-
-

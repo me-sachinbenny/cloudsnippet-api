@@ -1,15 +1,7 @@
 """
 Tool Database Model
 
-This module defines the MongoDB document structure for tools including:
-- Basic tool information (name, description, image)
-- Detailed content (overview, troubleshooting, best practices)
-- Search capabilities (tags, text search)
-- Security features (HTML sanitization)
-- Automatic field generation (slugs, timestamps)
-
-The model uses Beanie ODM for MongoDB integration and includes
-validation rules, text indexes, and example data for documentation.
+This module defines the MongoDB document structure for tools.
 """
 
 #-----------------------------------------------------------------------------
@@ -21,15 +13,15 @@ from typing import Optional, List
 from datetime import datetime
 
 # Third-party imports
-
 from pydantic import Field
 from pymongo import IndexModel, TEXT
 from beanie import Document
 
 # Schemas imports
-from ..schemas.best_practice_schema import BestPractice
-from ..schemas.troubleshooting_schemas import TroubleshootingItem
-from ..schemas.implementation_schema import ImplementationGuide
+from ....schemas import (
+    BestPractice, TroubleshootingItem, ImplementationGuide
+)
+
 
 # Constants for validation
 MAX_NAME_LENGTH = 100
@@ -44,21 +36,7 @@ ALLOWED_HTML_ATTRS = {'*': ['class']}
 
 
 class Tool(Document):
-    """MongoDB document model for developer tools and technologies.
-    
-    Attributes:
-        name: The name of the tool (required)
-        slug: URL-friendly version of name (auto-generated)
-        description: Brief description of the tool (required)
-        image: URL to tool's image
-        overview: Detailed explanation of the tool
-        troubleshooting: List of common issues and solutions
-        best_practices: List of recommended practices
-        implementations: Technical implementation details
-        tags: List of searchable keywords
-        created_at: Timestamp of creation (auto-set)
-        updated_at: Timestamp of last update (auto-set)
-    """
+    """MongoDB document model for developer tools and technologies."""
 
     model_config = {
         "extra": "allow",

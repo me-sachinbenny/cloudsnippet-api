@@ -1,12 +1,6 @@
 """Tools Router
 
-This module handles all tool-related HTTP endpoints including:
-- Create, Read, Update, Delete (CRUD) operations
-- List all tools with pagination
-- Get tool by ID or slug
-- Search tools by text or tags
-
-All endpoints use MongoDB for persistence and follow REST conventions.
+This module handles all tool-related HTTP endpoints.
 """
 
 #-----------------------------------------------------------------------------
@@ -20,7 +14,7 @@ from typing import List, Optional
 import re  
 
 # Application imports
-from ....schemas.tool_schemas import (
+from ....schemas import (
     CreateToolRequest, UpdateToolRequest,DeleteToolRequest,
     ToolDetailResponse, ToolBriefResponse,
     ToolListResponse
@@ -34,14 +28,7 @@ from ....infrastructure.database.mongodb import get_db
 #-----------------------------------------------------------------------------
 
 def get_tool_service(db = Depends(get_db)) -> ToolService:
-    """Dependency injection for ToolService.
-    
-    Args:
-        db: MongoDB database from dependency injection
-        
-    Returns:
-        ToolService: Initialized tool service with database
-    """
+    """Provides dependency injection for ToolService."""
     return ToolService(db)
 
 #-----------------------------------------------------------------------------
@@ -67,13 +54,13 @@ router = APIRouter(
     response_model=ToolDetailResponse, 
     status_code=status.HTTP_201_CREATED,
     summary="Create a new tool",
-    description="Create a new tool with the provided data. Name must be unique."
+    description="Create a new tool."
 )
 async def create_tool(
     tool_data: CreateToolRequest,   
     service: ToolService = Depends(get_tool_service)
 ) -> ToolDetailResponse:
-    """Create a new tool in the system."""
+    """Create a new tool."""
     return await service.create(tool_data)
 
 @router.post(
@@ -81,13 +68,13 @@ async def create_tool(
     response_model=List[ToolDetailResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Generate tool components from a query",
-    description="Extract tool names from input and create/update tool components using AI."
+    description="Generate tool components."
 )
 async def generate_components(
     query: str,
     service: ToolService = Depends(get_tool_service)
 ) -> List[ToolDetailResponse]:
-    """Generate tool components from a query."""
+    """Generate tool components."""
     return await service.generate_components(query)
 
 
@@ -102,14 +89,14 @@ async def generate_components(
     response_model=ToolListResponse,
     status_code=status.HTTP_200_OK,
     summary="List all tools",
-    description="List all tools in the system with pagination support."
+    description="List all tools."
 )
 async def list_tools(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of records to return"),
     service: ToolService = Depends(get_tool_service)
 ) -> ToolListResponse:
-    """List all tools in the system with pagination support."""
+    """List all tools."""
     return await service.list_all(skip=skip, limit=limit)
 
 @router.get(
@@ -117,14 +104,14 @@ async def list_tools(
     response_model=List[ToolBriefResponse],
     status_code=status.HTTP_200_OK,
     summary="Search tools",
-    description="Search tools by text query or tag."
+    description="Search tools."
 )
 async def search_tools(
     q: Optional[str] = Query(None, description="Text to search in name, overview, and implementation"),
     tag: Optional[str] = Query(None, description="Tag to filter by"),
     service: ToolService = Depends(get_tool_service)
 ) -> List[ToolBriefResponse]:
-    """Search tools by text or tag."""
+    """Search tools."""
     if tag:
         return await service.find_by_tag(tag)
     elif q:
@@ -138,13 +125,13 @@ async def search_tools(
     response_model=ToolDetailResponse,
     status_code=status.HTTP_200_OK,
     summary="Get tool by ID",
-    description="Get a specific tool by its unique identifier."
+    description="Get a tool."
 )
 async def get_tool(
     tool_id: str,
     service: ToolService = Depends(get_tool_service)
 ) -> ToolDetailResponse:
-    """Get a specific tool by ID."""
+    """Get a tool."""
     return await service.get_by_id(tool_id)
 
 @router.get(
@@ -152,13 +139,13 @@ async def get_tool(
     response_model=ToolDetailResponse,
     status_code=status.HTTP_200_OK,
     summary="Get tool by slug",
-    description="Get a specific tool by its URL-friendly slug."
+    description="Get a tool."
 )
 async def get_tool_by_slug(
     slug: str,
     service: ToolService = Depends(get_tool_service)
 ) -> ToolDetailResponse:
-    """Get a specific tool by slug."""
+    """Get a tool."""
     return await service.get_by_slug(slug)
 
 #-----------------------------------------------------------------------------
@@ -170,14 +157,14 @@ async def get_tool_by_slug(
     response_model=ToolDetailResponse,
     status_code=status.HTTP_200_OK,
     summary="Update tool",
-    description="Update an existing tool with the provided data."
+    description="Update a tool."
 )
 async def update_tool(
     tool_id: str,
     tool_data: UpdateToolRequest,
     service: ToolService = Depends(get_tool_service)
 ) -> ToolDetailResponse:
-    """Update an existing tool."""
+    """Update a tool."""
     return await service.update(tool_id, tool_data)
 
 #-----------------------------------------------------------------------------
@@ -188,12 +175,11 @@ async def update_tool(
     "/{tool_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete tool",
-    description="Delete a tool from the system."
+    description="Delete a tool."
 )
 async def delete_tool(
     tool_data: DeleteToolRequest,
     service: ToolService = Depends(get_tool_service)
 ) -> None:
-    """Delete a tool from the system."""
+    """Delete a tool."""
     await service.delete(tool_data.id)
-

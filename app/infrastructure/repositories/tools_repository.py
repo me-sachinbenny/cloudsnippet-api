@@ -1,14 +1,7 @@
 """
 Tools Repository Layer
 
-This module implements the data access layer for tool operations including:
-- CRUD operations using Beanie ODM
-- MongoDB query operations
-- Error handling for database operations
-- Pagination and projection support
-
-The repository layer is responsible for all database interactions and
-should be the only layer that directly works with the database models.
+This module implements the data access layer for tool operations.
 """
 
 #-----------------------------------------------------------------------------
@@ -18,34 +11,23 @@ should be the only layer that directly works with the database models.
 # Standard library imports
 from typing import List, Optional, Tuple
 from bson import ObjectId
-from pydantic import BaseModel, Field, field_validator
 
 # Framework imports
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from app.schemas import ToolDetailResponse
+
 # Exception handling
-from ..exceptions.repository_exceptions import (
-    DuplicateEntityException,
-    EntityNotFoundException,
-    InvalidIdentifierException
-)
-from ..exceptions.error_handler import RepositoryErrorHandler
+from ...exceptions import EntityNotFoundException
+
+from ...exceptions import RepositoryErrorHandler
 
 # Application imports
-from ...models.tool_models import Tool
-from ...schemas.best_practice_schema import BestPractice
-from ...schemas.implementation_schema import ImplementationGuide
-from ...schemas.troubleshooting_schemas import TroubleshootingItem
-
-
+from ..database.models import Tool
 
 #-----------------------------------------------------------------------------
 # Repository Implementation
 #-----------------------------------------------------------------------------
-
-
-
-
 
 class ToolsRepository:
     """Repository for handling tool-related database operations."""
@@ -60,64 +42,35 @@ class ToolsRepository:
     
     @RepositoryErrorHandler.handle_operation
     async def create(self, tool_data: dict) -> Tool:
-        """Creates a new tool document in MongoDB."""
+        """Creates a new tool document."""
         tool = Tool(**tool_data)
         await tool.insert()
         return tool
     
     @RepositoryErrorHandler.handle_operation
     async def create_many(self, tools_data: List[dict]) -> List[Tool]:
-        """Creates multiple tool documents in MongoDB."""
+        """Creates multiple tool documents."""
         tools = []
         for tool_data in tools_data:
             tool = Tool(**tool_data)
             await tool.insert()
             tools.append(tool)
         return tools
-    
+
     @RepositoryErrorHandler.handle_operation
-    async def _create_best_practices(self, items: List[dict]) -> List[BestPractice]:
-        for item in items:
-            item["id"] = self._generate_id("bp", item)
-            best_practice = BestPractice(**item)
-            await best_practice.insert()
-            return best_practice
+    async def _create_field(self, item:dict,tool_id: str) -> ToolDetailResponse:
+        tool = await self.get_by_id(tool_id)
+        tool[item["field_name"]] = item["field_data"]
+        await tool.save()
+        return tool
     
-    @RepositoryErrorHandler.handle_operation
-    async def _create_troubleshooting_items(self, items: List[dict]) -> List[TroubleshootingItem]:
-        for item in items:
-            item["id"] = self._generate_id("tr", item)
-            troubleshooting_item = TroubleshootingItem(**item)
-            await troubleshooting_item.insert()
-            return troubleshooting_item
-
-    
-    @RepositoryErrorHandler.handle_operation
-    async def _create_root_causes(self, items: List[dict]) -> List[RootCause]:
-        for item in items:
-            item["id"] = self._generate_id("rc", item)
-            root_cause = RootCause(**item)
-            await root_cause.insert()
-            return root_cause
-
-    
-    @RepositoryErrorHandler.handle_operation
-    async def _create_solutions(self, items: List[dict]) -> List[Solution]:
-        for item in items:
-            item["id"] = self._generate_id("so", item)
-            solution = Solution(**item)
-            await solution.insert()
-            return solution
-
-
-
     #-------------------------------------------------------------------------
     # Read Operations (Direct Lookups)
     #-------------------------------------------------------------------------
     
     @RepositoryErrorHandler.handle_operation
     async def get_by_id(self, tool_id: str) -> Optional[Tool]:
-        """Retrieves a tool document by its unique identifier."""
+        """Retrieves a tool document."""
         object_id = ObjectId(tool_id)
         tool = await Tool.find_one({"_id": object_id})
         if not tool:
@@ -126,7 +79,7 @@ class ToolsRepository:
     
     @RepositoryErrorHandler.handle_operation
     async def get_by_slug(self, slug: str) -> Optional[Tool]:
-        """Retrieves a tool document by its URL-friendly slug."""
+        """Retrieves a tool document."""
         tool = await Tool.find_one(Tool.slug == slug)
         if not tool:
             raise EntityNotFoundException("Tool", "slug", slug)
@@ -147,7 +100,7 @@ class ToolsRepository:
     
     @RepositoryErrorHandler.handle_operation
     async def update(self, tool_id: str, tool_data: dict) -> Tool:
-        """Updates an existing tool document with new data."""
+        """Updates an existing tool document."""
         tool = await self.get_by_id(tool_id)
         await tool.set(tool_data)
         return tool
@@ -155,6 +108,7 @@ class ToolsRepository:
     
     @RepositoryErrorHandler.handle_operation
     async def update_many(self, tools_data: List[dict]) -> List[Tool]:
+        """Updates multiple tool documents."""
         tools = []
         for tool_data in tools_data:
             tool = await self.get_by_id(tool_data.get("id"))
@@ -174,18 +128,20 @@ class ToolsRepository:
     #-------------------------------------------------------------------------
     
     async def delete(self, tool_id: str) -> None:
-        """Removes a tool document from the database."""
+        """Removes a tool document."""
         tool = await self.get_by_id(tool_id)
         await tool.delete()
+    
+  
 
     #-------------------------------------------------------------------------
     # Search and Filter Operations
     #-------------------------------------------------------------------------
     
     async def search(self, query: str) -> List[Tool]:
-        """Performs full-text search across tool documents."""
+        """Performs full-text search."""
         return await Tool.text_search(query)
     
     async def find_by_tag(self, tag: str) -> List[Tool]:
-        """Filters tool documents by tag field."""
+        """Filters tool documents."""
         return await Tool.find_by_tag(tag)

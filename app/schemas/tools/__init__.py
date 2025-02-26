@@ -1,14 +1,20 @@
-"""Schema exports."""
+"""Tool schemas."""
 
-from .response_base import PaginatedResponse
-from .tools import (
+"""Tool schemas."""
+
+from .base import (
     Tool, ToolUpdate, ToolProjection,
-    ToolState, ReviewAction,
-    CreateToolRequest, UpdateToolRequest,DeleteToolRequest,
-    ToolDetailResponse, ToolBriefResponse, ToolListResponse,
-    TroubleshootingItem, ImplementationGuide, ImplementationStep,
-    BestPractice, RootCause, Solution
+    ToolState, ReviewAction
 )
+from .schemas import (
+    CreateToolRequest, UpdateToolRequest,DeleteToolRequest,
+    ToolDetailResponse, ToolBriefResponse, ToolListResponse
+)
+from .troubleshooting import TroubleshootingItem
+from .implementation import ImplementationGuide, ImplementationStep
+from .best_practice import BestPractice
+from .root_cause import RootCause
+from .solution import Solution
 
 __all__ = [
     # Base schemas
@@ -17,7 +23,6 @@ __all__ = [
     'ToolProjection',
     'ToolState',
     'ReviewAction',
-    'PaginatedResponse',
     
     # Request schemas
     'CreateToolRequest',
